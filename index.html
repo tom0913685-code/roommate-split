@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>室友分帳</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root {
+    --bg: #fff6ec; --card: #ffffff; --text: #4a3b35; --muted: #9a8a82;
+    --line: #efe5da; --field: #fffaf5; --accent: #5f9a86; --accent-soft: #e6f1ec;
+    --circle: #e07a35; --circle-soft: #fdeadb; --sparrow: #3f4650; --sparrow-soft: #eceef1;
+    --danger: #d9534f; --shadow: 0 6px 18px rgba(214, 160, 120, .18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #221c1a; --card: #2d2522; --text: #f3e7df; --muted: #b3a196;
+      --line: #43372f; --field: #261f1c; --accent: #7fc0a9; --accent-soft: #26372f;
+      --circle: #ff9a63; --circle-soft: #4a3226; --sparrow: #c9ced6; --sparrow-soft: #353a42;
+      --danger: #ff7b73; --shadow: 0 6px 18px rgba(0, 0, 0, .3);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+    line-height: 1.5;
+    background-image: radial-gradient(var(--line) 1.5px, transparent 1.5px);
+    background-size: 22px 22px;
+  }
+  main { max-width: 620px; margin: 0 auto; padding: 20px 16px 48px; }
+  .hidden { display: none !important; }
+
+  /* 頁首 */
+  header { text-align: center; margin: 8px 0 14px; }
+  .duo { display: flex; justify-content: center; align-items: flex-end; gap: 10px; }
+  h1 { font-size: 1.45rem; margin: 8px 0 0; letter-spacing: .05em; }
+
+  /* 身分列 */
+  .status { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: .9rem; color: var(--muted); margin-bottom: 18px; }
+  .status .btn { padding: 6px 14px; font-size: .88rem; }
+  .notice { background: var(--accent-soft); border-radius: 16px; padding: 10px 14px; font-size: .9rem; margin-bottom: 18px; }
+  .notice.err { background: #fde8e7; color: #8a2a24; }
+  @media (prefers-color-scheme: dark) { .notice.err { background: #4a2523; color: #ffcdc9; } }
+
+  h2 { font-size: 1.08rem; margin: 0 0 14px; display: flex; align-items: center; gap: 6px; }
+  .card { background: var(--card); border: 2px solid var(--line); border-radius: 22px; padding: 18px; margin-bottom: 18px; box-shadow: var(--shadow); }
+
+  /* 頭像 */
+  .av { display: inline-block; border-radius: 28%; overflow: hidden; flex-shrink: 0; vertical-align: middle; background: #fff; border: 2px solid var(--line); }
+  .av img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+  /* 表單 */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .full { grid-column: 1 / -1; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+  input, select, button, textarea { font: inherit; color: inherit; }
+  input, select, textarea {
+    width: 100%; padding: 9px 12px; border: 2px solid var(--line); border-radius: 14px; background: var(--field);
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  input:disabled { opacity: .7; }
+  .ratio { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ratio > div { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 16px; }
+  .ratio .rc { background: var(--circle-soft); }
+  .ratio .rs { background: var(--sparrow-soft); }
+  .ratio input { background: var(--card); text-align: center; }
+  .pick { display: flex; gap: 10px; }
+  .pick label {
+    flex: 1; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 6px; border: 2px solid var(--line); border-radius: 16px; cursor: pointer; color: var(--text);
+  }
+  .pick input { display: none; }
+  .pick label:has(input[value=Circle]:checked) { border-color: var(--circle); background: var(--circle-soft); }
+  .pick label:has(input[value=Sparrow]:checked) { border-color: var(--sparrow); background: var(--sparrow-soft); }
+  .preview { font-size: .9rem; color: var(--muted); background: var(--field); border: 2px dashed var(--line); border-radius: 14px; padding: 8px 12px; }
+  .btn {
+    border: none; border-radius: 999px; padding: 11px 18px; cursor: pointer;
+    background: var(--accent); color: #fff; font-weight: 700;
+  }
+  .btn:disabled { opacity: .55; cursor: wait; }
+  @media (prefers-color-scheme: dark) { .btn { color: #10201b; } }
+  .btn.ghost { background: var(--card); color: var(--text); border: 2px solid var(--line); font-weight: 600; }
+  .btn.danger { background: var(--card); color: var(--danger); border: 2px solid var(--line); font-weight: 600; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .c { color: var(--circle); font-weight: 700; }
+  .s { color: var(--sparrow); font-weight: 700; }
+
+  /* 結算金流圖 */
+  .flow { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px; margin: 6px 0 4px; }
+  .who { text-align: center; width: 96px; }
+  .who .name { font-weight: 700; margin-top: 4px; }
+  .who .role { font-size: .78rem; color: var(--muted); }
+  .mid { position: relative; text-align: center; padding-bottom: 6px; }
+  .money {
+    display: inline-block; background: #fff3b0; color: #7a5a00; font-weight: 800; font-size: 1.25rem;
+    padding: 4px 14px; border-radius: 999px; border: 2px solid #f5d76e; margin-bottom: 10px;
+  }
+  @media (prefers-color-scheme: dark) { .money { background: #4d4217; color: #ffe27a; border-color: #8a7420; } }
+  .track {
+    position: relative; height: 6px; margin-right: 12px; border-radius: 3px;
+    background: repeating-linear-gradient(90deg, var(--accent) 0 10px, transparent 10px 18px);
+  }
+  .track::after {
+    content: ""; position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+    border-left: 16px solid var(--accent); border-top: 11px solid transparent; border-bottom: 11px solid transparent;
+  }
+  .even-mid { font-size: 2rem; }
+  .flow-text { text-align: center; margin: 8px 0 14px; font-size: 1.02rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  td, th { padding: 7px 4px; text-align: right; border-bottom: 2px dotted var(--line); }
+  td:first-child, th:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; }
+  .namecell { display: flex; align-items: center; gap: 6px; }
+
+  /* 明細 */
+  .rec { display: flex; gap: 12px; border-top: 2px dotted var(--line); padding: 14px 0; }
+  .rec:first-child { border-top: none; padding-top: 0; }
+  .rec-body { flex: 1; min-width: 0; }
+  .rec-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+  .rec-title { font-weight: 700; }
+  .rec-amt { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rec-detail { font-size: .86rem; color: var(--muted); margin-top: 2px; }
+  .mini { display: inline-flex; align-items: center; gap: 4px; font-size: .9rem; margin-top: 6px; background: var(--field); border-radius: 999px; padding: 2px 10px 2px 3px; }
+  .mini .arr { color: var(--accent); font-weight: 800; }
+  .tag { display: inline-block; font-size: .74rem; padding: 1px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--text); margin-right: 6px; }
+  .del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .82rem; padding: 2px 4px; }
+  .del:hover { color: var(--danger); }
+  .empty { color: var(--muted); text-align: center; padding: 10px 0; }
+  .empty .duo { opacity: .85; margin-bottom: 6px; }
+
+  details summary { cursor: pointer; font-weight: 700; }
+  .defaults { display: grid; grid-template-columns: 1fr 90px 90px; gap: 8px; align-items: center; margin-top: 12px; font-size: .92rem; }
+  .sub-h { font-weight: 700; margin: 18px 0 6px; font-size: .95rem; }
+  .hint { font-size: .82rem; color: var(--muted); margin: 6px 0 0; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 18px; border-radius: 999px; opacity: 0; pointer-events: none; z-index: 10; }
+  .toast.show { opacity: 1; }
+  .busy { position: fixed; top: 12px; right: 12px; background: var(--card); border: 2px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: .82rem; color: var(--muted); z-index: 10; }
+
+  @media (max-width: 420px) {
+    .grid { grid-template-columns: 1fr; }
+    .who { width: 74px; }
+    .money { font-size: 1.05rem; padding: 3px 10px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="duo" id="headerDuo"></div>
+    <h1>Circle & Sparrow 的分帳小本本</h1>
+  </header>
+
+  <div class="status" id="status">讀取中…</div>
+  <div class="notice hidden" id="notice"></div>
+
+  <!-- 舊紀錄搬家（這台裝置的瀏覽器裡還有舊版資料時才顯示） -->
+  <div class="notice hidden" id="migrate"></div>
+
+  <!-- 邀請室友（只有成員、且另一位還沒加入時顯示） -->
+  <section class="card hidden" id="inviteCard"></section>
+
+  <!-- 新增費用（只有成員看得到） -->
+  <section class="card hidden" id="formCard">
+    <h2>📝 新增費用</h2>
+    <form id="form" class="grid" autocomplete="off">
+      <div>
+        <label for="date">付款日期</label>
+        <input type="date" id="date" required>
+      </div>
+      <div>
+        <label for="month">帳單月份</label>
+        <input type="month" id="month" required>
+      </div>
+      <div>
+        <label for="category">類別</label>
+        <select id="category"></select>
+      </div>
+      <div>
+        <label for="name" id="nameLabel">備註（選填）</label>
+        <input type="text" id="name" maxlength="50" placeholder="例如：10–11 月電費">
+      </div>
+      <div class="full">
+        <label>分攤比例（%）</label>
+        <div class="ratio">
+          <div class="rc"><span id="ratioAvC"></span><input type="number" id="pctC" min="0" max="100" step="1" required aria-label="Circle 比例"></div>
+          <div class="rs"><span id="ratioAvS"></span><input type="number" id="pctS" min="0" max="100" step="1" required aria-label="Sparrow 比例"></div>
+        </div>
+      </div>
+      <div class="full">
+        <label for="amount">金額（元）</label>
+        <input type="number" id="amount" min="1" step="1" inputmode="numeric" placeholder="0" required>
+      </div>
+      <div class="full">
+        <label>誰付的錢？</label>
+        <div class="pick" id="pick"></div>
+      </div>
+      <div class="full preview" id="preview">輸入金額後會顯示試算結果</div>
+      <div class="full"><button class="btn" type="submit" id="submitBtn" style="width:100%">＋ 加入這筆費用</button></div>
+    </form>
+  </section>
+
+  <!-- 結算 -->
+  <section class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">💰 結算</h2>
+      <select id="filter" style="width:auto"></select>
+    </div>
+    <div id="summary"></div>
+  </section>
+
+  <!-- 明細 -->
+  <section class="card">
+    <details id="listBox">
+      <summary>🧾 費用明細 <span id="listCount" style="font-weight:400;color:var(--muted);font-size:.88rem"></span></summary>
+      <div id="list" style="margin-top:14px"></div>
+    </details>
+  </section>
+
+  <!-- 設定 -->
+  <section class="card">
+    <details>
+      <summary>⚙️ 設定</summary>
+      <div class="sub-h">各類別的預設分攤比例</div>
+      <div class="defaults" id="defaults"></div>
+      <p class="hint">選擇類別時會自動帶入這裡的比例，每一筆仍然可以個別修改。</p>
+
+      <div class="sub-h">分享觀看連結</div>
+      <p class="hint" style="margin-top:0">拿到連結的人可以看帳，但不能新增或修改。</p>
+      <div class="row" style="margin-top:8px"><button class="btn ghost" id="shareViewBtn" type="button">🔗 分享觀看連結</button></div>
+
+      <div id="importBox" class="hidden">
+        <div class="sub-h">匯入舊紀錄</div>
+        <p class="hint" style="margin-top:0">貼上從舊版網頁複製的資料，重複的紀錄會自動略過。</p>
+        <textarea id="importText" rows="3" style="margin-top:8px" placeholder='{"records":[...]}'></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn ghost" id="importBtn" type="button">匯入</button></div>
+      </div>
+    </details>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+<div class="busy hidden" id="busy">同步中…</div>
+
+<script>
+// ===== 需要填寫的設定 =====
+const LIFF_ID = '';   // LINE Developers 後台的 LIFF ID，例如 2001234567-AbCdEfGh
+const API_URL = '';   // Apps Script 部署後的網址，結尾是 /exec
+// ==========================
+
+const PEOPLE = ['Circle', 'Sparrow'];
+const CATS = ['水費', '電費', '瓦斯費', '生活開支', '其他'];
+const ICONS = { 水費: '💧', 電費: '⚡', 瓦斯費: '🔥', 生活開支: '🛒', 其他: '📦' };
+const OLD_KEY = 'roommate-split-v1';           // 舊版存在瀏覽器裡的資料
+const MIGRATED_KEY = 'roommate-split-migrated'; // 舊資料已經匯入過的標記
+
+let state = { records: [], defaults: Object.fromEntries(CATS.map(c => [c, 50])), members: { Circle: false, Sparrow: false } };
+let me = null;          // 目前登入的成員：'Circle'、'Sparrow'，或 null（觀看模式）
+let liffReady = false;
+let loaded = false;
+let filterMonth = null; // null = 自動選最新月份；'all' = 全部
+
+// ---------- 小工具 ----------
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('zh-TW');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const monthText = m => { const [y, mo] = m.split('-'); return `${y} 年 ${Number(mo)} 月`; };
+const person = p => `<span class="${p === 'Circle' ? 'c' : 's'}">${p}</span>`;
+const other = p => (p === 'Circle' ? 'Sparrow' : 'Circle');
+// 頭像（circle.png / sparrow.png，和 index.html 放在同一個資料夾）
+const av = (p, size) =>
+  `<span class="av" style="width:${size}px;height:${size}px" title="${p}"><img src="${p.toLowerCase()}.png" alt="${p}"></span>`;
+// 小金流：付錢的人 ➜ 收錢的人 金額
+const miniFlow = (from, amount) =>
+  `<span class="mini">${av(from, 24)}<span class="arr">➜</span>${av(other(from), 24)}<b>${fmt(amount)}</b> 元</span>`;
+const viewUrl = () => (LIFF_ID ? `https://liff.line.me/${LIFF_ID}` : location.href.split('?')[0]);
+
+// 四捨五入到整數；Sparrow 用「總額 − Circle」，確保兩人加起來剛好等於總額
+function split(amount, pctC) {
+  const c = Math.round(amount * pctC / 100);
+  return { c, s: amount - c };
+}
+function title(r) { return r.category === '其他' ? (r.name || '其他') : r.category; }
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function notice(msg, isErr) {
+  $('notice').innerHTML = msg;
+  $('notice').classList.toggle('err', !!isErr);
+  $('notice').classList.toggle('hidden', !msg);
+}
+
+const ERRORS = {
+  token_invalid: '登入已過期，請關掉頁面重新打開。',
+  need_login: '請先用 LINE 登入。',
+  not_member: '你目前是觀看模式，不能修改帳目。',
+  invite_invalid: '邀請連結無效或已過期，請請對方重新邀請。',
+  already_taken: '這個身分已經被綁定了。',
+  cannot_invite: '對方已經加入了，不需要再邀請。',
+};
+const errText = e => ERRORS[e.message] || `發生錯誤：${e.message}`;
+
+// ---------- 和後端溝通 ----------
+function idToken() {
+  try { return liffReady && liff.isLoggedIn() ? liff.getIDToken() : null; } catch (e) { return null; }
+}
+let busyCount = 0;
+function setBusy(on) {
+  busyCount += on ? 1 : -1;
+  $('busy').classList.toggle('hidden', busyCount <= 0);
+  document.querySelectorAll('.needs-idle').forEach(b => b.disabled = busyCount > 0);
+}
+async function api(action, payload = {}) {
+  const body = { action, ...payload };
+  const tok = idToken();
+  if (tok) body.idToken = tok;
+  setBusy(true);
+  try {
+    // 用 text/plain 送出，避免瀏覽器先送 CORS 預檢（Apps Script 不支援）
+    const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error);
+    applyServer(j);
+    return j;
+  } finally {
+    setBusy(false);
+  }
+}
+function applyServer(j) {
+  const prevMe = me;
+  state = j.data;
+  me = j.me && j.me.member ? j.me.member : null;
+  loaded = true;
+  if (me && me !== prevMe) setPayer(me); // 付款人預設帶入登入者
+  if (j.tokenExpired) notice(ERRORS.token_invalid, true);
+  renderAll();
+}
+
+// ---------- 表單 ----------
+function initForm() {
+  $('headerDuo').innerHTML = `${av('Circle', 76)}${av('Sparrow', 76)}`;
+  $('ratioAvC').innerHTML = av('Circle', 34);
+  $('ratioAvS').innerHTML = av('Sparrow', 34);
+  $('pick').innerHTML = PEOPLE.map((p, i) =>
+    `<label><input type="radio" name="payer" value="${p}" ${i === 0 ? 'checked' : ''}>${av(p, 40)}<span class="${p === 'Circle' ? 'c' : 's'}">${p}</span></label>`).join('');
+
+  $('category').innerHTML = CATS.map(c => `<option value="${c}">${ICONS[c]} ${c}</option>`).join('');
+  $('date').value = today();
+  $('month').value = today().slice(0, 7);
+  applyDefault();
+
+  $('category').addEventListener('change', () => { applyDefault(); updateNameField(); updatePreview(); });
+  $('pctC').addEventListener('input', () => { $('pctS').value = clampPct($('pctC').value, true); updatePreview(); });
+  $('pctS').addEventListener('input', () => { $('pctC').value = clampPct($('pctS').value, true); updatePreview(); });
+  $('amount').addEventListener('input', updatePreview);
+  document.querySelectorAll('input[name=payer]').forEach(r => r.addEventListener('change', updatePreview));
+  $('form').addEventListener('submit', addRecord);
+  $('submitBtn').classList.add('needs-idle');
+  updateNameField();
+}
+function clampPct(v, complement) {
+  const n = Math.min(100, Math.max(0, Math.round(Number(v) || 0)));
+  return complement ? 100 - n : n;
+}
+function applyDefault() {
+  const p = state.defaults[$('category').value] ?? 50;
+  $('pctC').value = p; $('pctS').value = 100 - p;
+}
+function updateNameField() {
+  const isOther = $('category').value === '其他';
+  $('nameLabel').textContent = isOther ? '項目名稱（必填）' : '備註（選填）';
+  $('name').required = isOther;
+  $('name').placeholder = isOther ? '例如：網路費、衛生紙' : '例如：10–11 月電費';
+}
+function payer() { return document.querySelector('input[name=payer]:checked').value; }
+function setPayer(p) { const r = document.querySelector(`input[name=payer][value=${p}]`); if (r) r.checked = true; updatePreview(); }
+
+function updatePreview() {
+  const amount = Math.round(Number($('amount').value));
+  if (!amount || amount <= 0) { $('preview').textContent = '輸入金額後會顯示試算結果'; return; }
+  const { c, s } = split(amount, clampPct($('pctC').value));
+  const p = payer(), owe = p === 'Circle' ? s : c;
+  $('preview').innerHTML = `試算：${person('Circle')} 負擔 ${fmt(c)}、${person('Sparrow')} 負擔 ${fmt(s)}<br>` +
+    (owe > 0 ? miniFlow(other(p), owe) : '由付款人全額負擔');
+}
+
+async function addRecord(e) {
+  e.preventDefault();
+  const amount = Math.round(Number($('amount').value));
+  if (!amount || amount <= 0) return;
+  const record = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    date: $('date').value,
+    month: $('month').value,
+    category: $('category').value,
+    name: $('name').value.trim(),
+    amount, payer: payer(), pctC: clampPct($('pctC').value),
+  };
+  try {
+    filterMonth = record.month; // 切到剛新增的月份
+    await api('add', { record });
+    $('amount').value = ''; $('name').value = '';
+    updatePreview();
+    toast('已加入');
+  } catch (err) { toast(errText(err)); }
+}
+
+// ---------- 身分列、邀請、舊資料搬家 ----------
+function renderStatus() {
+  const s = $('status');
+  if (!loaded) return;
+  if (me) {
+    s.innerHTML = `${av(me, 28)}以 ${person(me)} 的身分記帳中`;
+  } else if (liffReady && !liff.isLoggedIn()) {
+    s.innerHTML = `👀 觀看模式 <button class="btn ghost" id="loginBtn" type="button">成員用 LINE 登入</button>`;
+    $('loginBtn').onclick = () => liff.login({ redirectUri: location.href });
+  } else {
+    s.innerHTML = '👀 觀看模式（只能看，不能修改）';
+  }
+  $('formCard').classList.toggle('hidden', !me);
+  $('importBox').classList.toggle('hidden', !me);
+}
+
+function renderInvite() {
+  const box = $('inviteCard');
+  const target = me && PEOPLE.find(p => p !== me && !state.members[p]);
+  if (!target) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  box.innerHTML = `
+    <div class="row" style="gap:12px">
+      ${av(target, 48)}
+      <div style="flex:1;min-width:160px"><b>${person(target)} 還沒加入</b><div class="hint" style="margin:0">傳一個邀請連結給 ${target}，點開就能一起記帳（7 天內有效、只能用一次）。</div></div>
+      <button class="btn needs-idle" id="inviteBtn" type="button">邀請 ${target}</button>
+    </div>`;
+  $('inviteBtn').onclick = async () => {
+    try {
+      const j = await api('invite', { as: target });
+      const url = `https://liff.line.me/${LIFF_ID}?invite=${j.invite.code}&as=${j.invite.as}`;
+      await shareText(`${me} 邀請你加入「Circle & Sparrow 的分帳小本本」，點這裡就能一起記帳：\n${url}`, '已複製邀請連結，貼到 LINE 給對方');
+    } catch (err) { toast(errText(err)); }
+  };
+}
+
+function oldRecords() {
+  try {
+    if (localStorage.getItem(MIGRATED_KEY)) return [];
+    const s = JSON.parse(localStorage.getItem(OLD_KEY));
+    return (s && s.records) || [];
+  } catch (e) { return []; }
+}
+function renderMigrate() {
+  const recs = oldRecords(), box = $('migrate');
+  if (!recs.length || !loaded) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  if (me) {
+    box.innerHTML = `這台裝置上有 <b>${recs.length}</b> 筆舊版的紀錄。 <button class="btn ghost needs-idle" id="migrateBtn" type="button">匯入到雲端</button>`;
+    $('migrateBtn').onclick = () => importRecords(recs, true);
+  } else {
+    box.innerHTML = `這台裝置上有 <b>${recs.length}</b> 筆舊版的紀錄。 <button class="btn ghost" id="migrateBtn" type="button">複製舊紀錄</button>
+      <div class="hint">複製後，到線上版登入，在「設定 → 匯入舊紀錄」貼上。</div>`;
+    $('migrateBtn').onclick = () => copy(JSON.stringify({ records: recs }), '已複製舊紀錄');
+  }
+}
+async function importRecords(records, fromLocal) {
+  try {
+    const before = state.records.length;
+    await api('import', { records });
+    if (fromLocal) { try { localStorage.setItem(MIGRATED_KEY, '1'); } catch (e) {} }
+    filterMonth = null;
+    renderAll();
+    toast(`匯入完成，新增 ${state.records.length - before} 筆`);
+  } catch (err) { toast(errText(err)); }
+}
+
+// ---------- 設定 ----------
+function renderDefaults() {
+  $('defaults').innerHTML = `<div></div><div>${av('Circle', 28)} <span class="c" style="font-size:.8rem">%</span></div><div>${av('Sparrow', 28)} <span class="s" style="font-size:.8rem">%</span></div>` +
+    CATS.map(c => `<div>${ICONS[c]} ${c}</div>
+      <input type="number" min="0" max="100" step="1" data-cat="${c}" value="${state.defaults[c]}" ${me ? '' : 'disabled'}>
+      <div style="padding-left:12px" id="def-s-${c}">${100 - state.defaults[c]}</div>`).join('');
+  $('defaults').querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => { $('def-s-' + inp.dataset.cat).textContent = 100 - clampPct(inp.value); });
+    inp.addEventListener('change', async () => {
+      try {
+        await api('setDefault', { category: inp.dataset.cat, pct: clampPct(inp.value) });
+        if ($('category').value === inp.dataset.cat) { applyDefault(); updatePreview(); }
+        toast('已更新預設比例');
+      } catch (err) { toast(errText(err)); }
+    });
+  });
+}
+
+// ---------- 結算與明細 ----------
+function months() { return [...new Set(state.records.map(r => r.month))].sort().reverse(); }
+function filtered() {
+  const list = filterMonth === 'all' ? state.records : state.records.filter(r => r.month === filterMonth);
+  return [...list].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+}
+
+function totals(list) {
+  const t = { amount: 0, paidC: 0, paidS: 0, shareC: 0, shareS: 0 };
+  list.forEach(r => {
+    const { c, s } = split(r.amount, r.pctC);
+    t.amount += r.amount; t.shareC += c; t.shareS += s;
+    if (r.payer === 'Circle') t.paidC += r.amount; else t.paidS += r.amount;
+  });
+  t.net = t.paidC - t.shareC; // > 0：Sparrow 應付給 Circle；< 0：Circle 應付給 Sparrow
+  return t;
+}
+function resultText(net) {
+  if (net === 0) return '兩人剛好打平，不用互相付款';
+  return net > 0 ? `Sparrow 應付給 Circle ${fmt(net)} 元` : `Circle 應付給 Sparrow ${fmt(-net)} 元`;
+}
+
+// 結算金流圖：左邊是要付錢的人，右邊是收錢的人，中間是箭頭與金額
+function flowHtml(net) {
+  const who = (p, role) => `<div class="who">${av(p, 72)}<div class="name ${p === 'Circle' ? 'c' : 's'}">${p}</div><div class="role">${role}</div></div>`;
+  if (net === 0) {
+    return `<div class="flow">${who('Circle', '')}<div class="mid even-mid">🤝</div>${who('Sparrow', '')}</div>
+      <p class="flow-text">${resultText(0)}</p>`;
+  }
+  const from = net > 0 ? 'Sparrow' : 'Circle', to = other(from), amt = Math.abs(net);
+  return `<div class="flow">
+      ${who(from, '要付錢')}
+      <div class="mid">
+        <div class="money">${fmt(amt)} 元</div>
+        <div class="track"></div>
+      </div>
+      ${who(to, '收錢')}
+    </div>
+    <p class="flow-text">${person(from)} 應付給 ${person(to)} <b>${fmt(amt)}</b> 元</p>`;
+}
+
+function emptyHtml(msg) {
+  return `<div class="empty"><div class="duo">${av('Circle', 48)}${av('Sparrow', 48)}</div>${msg}</div>`;
+}
+
+function renderMain() {
+  const ms = months();
+  if (filterMonth !== 'all' && !ms.includes(filterMonth)) filterMonth = ms[0] || 'all';
+  $('filter').innerHTML = ms.map(m => `<option value="${m}">${monthText(m)}</option>`).join('') + '<option value="all">全部月份</option>';
+  $('filter').value = filterMonth;
+
+  const list = filtered();
+  const label = filterMonth === 'all' ? '全部月份' : monthText(filterMonth);
+  $('listCount').textContent = list.length ? `（${label}・${list.length} 筆）` : '';
+
+  if (!loaded) {
+    $('summary').innerHTML = emptyHtml('讀取中…');
+    $('list').innerHTML = '';
+    return;
+  }
+  if (!list.length) {
+    $('summary').innerHTML = emptyHtml(me ? '還沒有費用紀錄，從上面新增第一筆吧！' : '還沒有費用紀錄');
+    $('list').innerHTML = '<p class="empty">新增的費用會列在這裡</p>';
+    return;
+  }
+
+  const t = totals(list);
+  const nameCell = p => `<div class="namecell">${av(p, 26)}${person(p)}</div>`;
+  $('summary').innerHTML = `
+    ${flowHtml(t.net)}
+    <table>
+      <tr><th>${esc(label)}・共 ${list.length} 筆</th><th>已付款</th><th>應負擔</th><th>差額</th></tr>
+      <tr><td>${nameCell('Circle')}</td><td>${fmt(t.paidC)}</td><td>${fmt(t.shareC)}</td><td>${signed(t.paidC - t.shareC)}</td></tr>
+      <tr><td>${nameCell('Sparrow')}</td><td>${fmt(t.paidS)}</td><td>${fmt(t.shareS)}</td><td>${signed(t.paidS - t.shareS)}</td></tr>
+      <tr><td>合計</td><td>${fmt(t.amount)}</td><td>${fmt(t.amount)}</td><td></td></tr>
+    </table>
+    <p style="font-size:.8rem;color:var(--muted);margin:6px 0 14px">差額為正：多付了，應收回；為負：少付了，應補給對方。</p>
+    <div class="row">
+      <button class="btn ghost" id="shareBtn" type="button">💬 傳到聊天室</button>
+      ${me ? '<button class="btn danger needs-idle" id="settleBtn" type="button">結算完畢，封存這些紀錄</button>' : ''}
+    </div>`;
+  $('shareBtn').onclick = () => shareText(summaryText(list, label, t), '已複製結算文字，可以貼到 LINE');
+  if (me) $('settleBtn').onclick = async () => {
+    if (!confirm(`確定「${label}」已經結清了嗎？\n這 ${list.length} 筆紀錄會搬到試算表的「已結算」分頁，網頁上不再顯示。`)) return;
+    try { await api('settle', { ids: list.map(r => r.id) }); filterMonth = null; renderAll(); toast('已封存'); }
+    catch (err) { toast(errText(err)); }
+  };
+
+  $('list').innerHTML = list.map(r => {
+    const { c, s } = split(r.amount, r.pctC);
+    const owe = r.payer === 'Circle' ? s : c;
+    const note = r.category !== '其他' && r.name ? `<div class="rec-detail">備註：${esc(r.name)}</div>` : '';
+    const by = r.createdBy ? `・由 ${esc(r.createdBy)} 記錄` : '';
+    return `<div class="rec">
+      ${av(r.payer, 44)}
+      <div class="rec-body">
+        <div class="rec-head">
+          <div><span class="tag">${monthText(r.month)}</span><span class="rec-title">${ICONS[r.category] || ''} ${esc(title(r))}</span></div>
+          <div class="rec-amt">${fmt(r.amount)} 元</div>
+        </div>
+        <div class="rec-detail">${r.date.replace(/-/g, '/')}・${person(r.payer)} 付款・比例 ${r.pctC} : ${100 - r.pctC}${by}</div>
+        <div class="rec-detail">${person('Circle')} ${fmt(r.amount)} × ${r.pctC}% = ${fmt(c)}；${person('Sparrow')} ${fmt(r.amount)} × ${100 - r.pctC}% = ${fmt(s)}</div>
+        ${note}
+        <div class="row" style="justify-content:space-between">
+          ${owe > 0 ? miniFlow(other(r.payer), owe) : '<span class="rec-detail">由付款人全額負擔</span>'}
+          ${me ? `<button class="del needs-idle" data-id="${esc(r.id)}" type="button">刪除</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  $('list').querySelectorAll('.del').forEach(b => b.onclick = async () => {
+    if (!confirm('確定刪除這筆費用？')) return;
+    try { await api('delete', { id: b.dataset.id }); toast('已刪除'); }
+    catch (err) { toast(errText(err)); }
+  });
+}
+function signed(n) { return n === 0 ? '0' : (n > 0 ? '+' : '−') + fmt(Math.abs(n)); }
+
+function summaryText(list, label, t) {
+  const lines = [`【${label} 分帳】`];
+  [...list].reverse().forEach((r, i) => {
+    const { c, s } = split(r.amount, r.pctC);
+    lines.push(`${i + 1}. ${r.date.slice(5).replace('-', '/')} ${title(r)} ${fmt(r.amount)}（${r.payer} 付）Circle ${fmt(c)} / Sparrow ${fmt(s)}`);
+  });
+  lines.push('', `合計 ${fmt(t.amount)} 元`,
+    `已付：Circle ${fmt(t.paidC)}、Sparrow ${fmt(t.paidS)}`,
+    `應負擔：Circle ${fmt(t.shareC)}、Sparrow ${fmt(t.shareS)}`,
+    `👉 ${resultText(t.net)}`, '', `明細：${viewUrl()}`);
+  return lines.join('\n');
+}
+
+function renderAll() {
+  renderStatus();
+  renderInvite();
+  renderMigrate();
+  renderDefaults();
+  renderMain();
+  document.querySelectorAll('.needs-idle').forEach(b => b.disabled = busyCount > 0);
+}
+
+// ---------- 分享與複製 ----------
+// 在 LINE 裡（或已登入時）用「傳到聊天室」，否則改成複製文字
+async function shareText(text, copiedMsg) {
+  try {
+    if (liffReady && liff.isLoggedIn() && liff.isApiAvailable('shareTargetPicker')) {
+      const res = await liff.shareTargetPicker([{ type: 'text', text }]);
+      if (res) toast('已傳送');
+      return;
+    }
+  } catch (e) { console.warn(e); }
+  copy(text, copiedMsg);
+}
+function copy(text, msg) {
+  const done = () => toast(msg);
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  } else fallbackCopy(text, done);
+}
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { prompt('請手動複製：', text); }
+  ta.remove();
+}
+
+// ---------- 啟動 ----------
+$('filter').addEventListener('change', e => { filterMonth = e.target.value; renderMain(); });
+$('shareViewBtn').onclick = () => shareText(`Circle & Sparrow 的分帳小本本（觀看用）：\n${viewUrl()}`, '已複製觀看連結');
+$('importBtn').onclick = () => {
+  let recs;
+  try { const j = JSON.parse($('importText').value); recs = Array.isArray(j) ? j : j.records; } catch (e) {}
+  if (!Array.isArray(recs) || !recs.length) { toast('格式不正確，請貼上複製的舊紀錄'); return; }
+  importRecords(recs, false).then(() => { $('importText').value = ''; });
+};
+
+async function main() {
+  initForm();
+  renderAll();
+  if (!API_URL) { notice('尚未設定 API_URL（Apps Script 網址），目前無法讀取資料。', true); loaded = true; renderAll(); return; }
+
+  // LIFF 只能在 https 網址上啟動；在本機直接打開檔案時就當作觀看模式
+  if (LIFF_ID && window.liff && location.protocol === 'https:') {
+    try { await liff.init({ liffId: LIFF_ID }); liffReady = true; } catch (e) { console.warn('LIFF 初始化失敗', e); }
+  }
+
+  const params = new URLSearchParams(location.search);
+  const invite = params.get('invite'), as = params.get('as');
+  if (invite && liffReady && !liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+
+  try {
+    if (invite && liffReady) {
+      try {
+        const j = await api('join', { code: invite, as });
+        if (j.joined) toast(`歡迎 ${j.joined}，綁定完成！`);
+      } catch (err) {
+        notice(errText(err), true);
+        await api('list');
+      }
+      history.replaceState(null, '', location.pathname); // 把邀請碼從網址移除
+    } else {
+      await api('list');
+    }
+  } catch (err) {
+    loaded = true; renderAll();
+    notice('讀取資料失敗：' + esc(err.message), true);
+  }
+}
+main();
+</script>
+</body>
+</html>
