@@ -7,8 +7,8 @@
  */
 
 // ===== 需要填寫的設定 =====
-const CHANNEL_ID = '請填入 LIFF 所在 channel 的 Channel ID'; // 用來驗證 LINE ID Token
-const LIFF_ID = '請填入 LIFF ID';                          // 用來產生邀請連結
+const CHANNEL_ID = '2012761151'; // 用來驗證 LINE ID Token
+const LIFF_ID = '2012761151-1s9J91ca';                         // 用來產生邀請連結
 // ==========================
 
 const MEMBERS = ['Circle', 'Sparrow'];
