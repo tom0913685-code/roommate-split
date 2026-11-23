@@ -56,8 +56,12 @@
   label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
   input, select, button, textarea { font: inherit; color: inherit; }
   input, select, textarea {
-    width: 100%; padding: 9px 12px; border: 2px solid var(--line); border-radius: 14px; background: var(--field);
+    width: 100%; min-width: 0; max-width: 100%; padding: 9px 12px; border: 2px solid var(--line); border-radius: 14px; background: var(--field);
   }
+  /* 手機的日期／月份欄位有預設最小寬度，會撐出格子，這裡取消掉 */
+  input[type=date], input[type=month] { -webkit-appearance: none; appearance: none; display: block; min-height: 44px; }
+  input::-webkit-date-and-time-value { text-align: left; }
+  .grid > *, .ratio > * { min-width: 0; }
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
   input:disabled { opacity: .7; }
   .ratio { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -138,8 +142,9 @@
   .toast.show { opacity: 1; }
   .busy { position: fixed; top: 12px; right: 12px; background: var(--card); border: 2px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: .82rem; color: var(--muted); z-index: 10; }
 
-  @media (max-width: 420px) {
+  @media (max-width: 520px) {
     .grid { grid-template-columns: 1fr; }
+    .card { padding: 16px 14px; }
     .who { width: 74px; }
     .money { font-size: 1.05rem; padding: 3px 10px; }
   }
