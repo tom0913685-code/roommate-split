@@ -240,6 +240,7 @@
         <p class="hint" style="margin-top:0">貼上從舊版網頁複製的資料，重複的紀錄會自動略過。</p>
         <textarea id="importText" rows="3" style="margin-top:8px" placeholder='{"records":[...]}'></textarea>
         <div class="row" style="margin-top:8px"><button class="btn ghost" id="importBtn" type="button">匯入</button></div>
+        <p class="hint" id="importStatus"></p>
       </div>
     </details>
   </section>
@@ -469,15 +470,28 @@ function renderMigrate() {
     $('migrateBtn').onclick = () => copy(JSON.stringify({ records: recs }), '已複製舊紀錄');
   }
 }
+// 匯入舊紀錄；結果同時顯示在「設定 → 匯入舊紀錄」下方，避免只跳一下提示就看不到
 async function importRecords(records, fromLocal) {
+  const status = msg => { $('importStatus').textContent = msg; toast(msg); };
+  // 舊版資料只保留需要的欄位，金額與比例轉成數字
+  const clean = records.map(r => ({
+    id: String(r.id || ''), date: r.date, month: r.month, category: r.category,
+    name: r.name || '', amount: Number(r.amount), payer: r.payer, pctC: Number(r.pctC ?? 50),
+  }));
+  status(`正在匯入 ${clean.length} 筆，請稍候…`);
   try {
     const before = state.records.length;
-    await api('import', { records });
+    await api('import', { records: clean });
     if (fromLocal) { try { localStorage.setItem(MIGRATED_KEY, '1'); } catch (e) {} }
     filterMonth = null;
     renderAll();
-    toast(`匯入完成，新增 ${state.records.length - before} 筆`);
-  } catch (err) { toast(errText(err)); }
+    status(`匯入完成：送出 ${clean.length} 筆，新增 ${state.records.length - before} 筆（重複的會略過）`);
+    return true;
+  } catch (err) {
+    console.error('匯入失敗', err);
+    status('匯入失敗：' + errText(err));
+    return false;
+  }
 }
 
 // ---------- 設定 ----------
@@ -666,11 +680,17 @@ function fallbackCopy(text, done) {
 // ---------- 啟動 ----------
 $('filter').addEventListener('change', e => { filterMonth = e.target.value; renderMain(); });
 $('shareViewBtn').onclick = () => shareText(`Circle & Sparrow 的分帳小本本（觀看用）：\n${viewUrl()}`, '已複製觀看連結');
-$('importBtn').onclick = () => {
+$('importBtn').onclick = async () => {
+  const text = $('importText').value.trim();
   let recs;
-  try { const j = JSON.parse($('importText').value); recs = Array.isArray(j) ? j : j.records; } catch (e) {}
-  if (!Array.isArray(recs) || !recs.length) { toast('格式不正確，請貼上複製的舊紀錄'); return; }
-  importRecords(recs, false).then(() => { $('importText').value = ''; });
+  try { const j = JSON.parse(text); recs = Array.isArray(j) ? j : j.records; } catch (e) {}
+  if (!text) { $('importStatus').textContent = '框框是空的，請先貼上複製的舊紀錄。'; return; }
+  if (!Array.isArray(recs)) { $('importStatus').textContent = `格式不正確，讀到的開頭是：「${text.slice(0, 40)}」`; return; }
+  if (!recs.length) { $('importStatus').textContent = '貼上的資料裡沒有任何紀錄（0 筆）。'; return; }
+  $('importBtn').disabled = true;
+  const ok = await importRecords(recs, false);
+  $('importBtn').disabled = false;
+  if (ok) $('importText').value = '';
 };
 
 async function main() {
